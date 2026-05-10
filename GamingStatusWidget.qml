@@ -15,6 +15,10 @@ PluginComponent {
     // and 3 seconds is plenty fast for games that run for minutes/hours.
     readonly property int pollInterval: 3
 
+    // Popout width: bumped from default (400px) so the memory card can fit
+    // three columns (RAM / Swap / VRAM) without truncation.
+    popoutWidth: 540
+
     // Settings
     property bool showLabel: pluginData.showLabel !== undefined ? pluginData.showLabel : true
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
