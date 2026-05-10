@@ -1,11 +1,12 @@
 {
     "id": "gamingStatus",
     "name": "Gaming Status",
-    "description": "Real-time gaming telemetry for DankMaterialShell - active game, gamemode state, RAM/swap pressure, CPU governor",
+    "description": "Gaming-mode toggle, auto-detection of running games, RAM/swap pressure and CPU governor in your DankBar",
     "version": "1.2.0",
     "author": "Rolle Laukkarinen",
     "icon": "sports_esports",
     "type": "widget",
+    "capabilities": ["dankbar-widget"],
     "component": "./GamingStatusWidget.qml",
     "settings": "./GamingStatusSettings.qml",
     "permissions": ["settings_read", "settings_write"]

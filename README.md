@@ -1,104 +1,95 @@
-<h1 align="center">Gaming Status</h1>
+# 🕹️ Gaming Status
 
-<p align="center">
-  <strong>Real-time gaming telemetry for DankMaterialShell</strong>
-</p>
+Gaming-mode toggle, auto-detection of running games, RAM/swap pressure and CPU governor — all in your DankBar.
 
-<p align="center">
-  <a href="#what-is-gaming-status">What is it?</a> &bull;
-  <a href="#features">Features</a> &bull;
-  <a href="#installation">Installation</a> &bull;
-  <a href="#configuration">Configuration</a> &bull;
-  <a href="#how-it-works">How it works</a>
-</p>
+## What it does
 
----
+A single bar pill that:
 
-## What is Gaming Status?
+- toggles **Gaming mode** on / off (closes Spotify / Slack / Telegram and drops RAM caches via a tiny shell helper)
+- auto-detects the active game from running processes (Wine + native), with proper names pulled from your installed game launchers
+- changes color when memory is tight (orange at >85% RAM, red at >95% or swap thrashing)
+- exposes a popout with the active game card, RAM and swap usage, gamemode-daemon state and CPU governor
 
-Gaming Status is a DankMaterialShell plugin that puts a small gaming-aware pill in your DankBar. It tells you at a glance:
-
-- whether a game is running (Wine, Proton, native), and which one
-- whether `gamemode` is active
-- how much RAM and swap is in use
-- the current CPU governor
-
-It is built for the same use case as Agent Notch (this repo's sibling): a non-intrusive top-bar indicator that surfaces system state without launching a separate monitor.
-
-## Features
-
-### Active game detection
-
-Matches running processes against a list of known game executables (`TS4_x64.exe`, `bg3.exe`, `Overwatch.exe`, `cs2`, `factorio`, `minecraft`, etc.). Unknown Wine `.exe` processes show as a generic "Wine game" with the binary name.
-
-### Gamemode awareness
-
-Polls `gamemoded -s` and shows whether `gamemode` is currently optimising the CPU/IO for a game.
-
-### Memory pressure
-
-Reads `free -m` and computes a 3-level pressure indicator (healthy / warning / critical) based on available RAM and swap usage. The bar pill turns orange or red when pressure crosses thresholds, even if no game is running.
-
-### CPU governor
-
-Reads `/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` and shows the current governor in the popout. Useful on machines that lock to `performance` system-wide.
-
-### Native popout
-
-Click the bar pill for a popout with the full breakdown: active game, PID, exe name, RAM/swap usage with absolute and percentage values, gamemode state, governor.
-
-### Lightweight
-
-No daemons, no extra processes. Polls a few `ps`/`free`/`gamemoded` commands every N seconds (default 5 s, configurable 2-30 s).
-
-## Installation
-
-DMS reads plugins from `~/.config/DankMaterialShell/plugins/`. Clone or symlink the repo there as `gamingStatus` (the id from `plugin.json`):
-
-```bash
-git clone https://github.com/rollecode/dms-gaming-status.git ~/Projects/dms-gaming-status
-ln -s ~/Projects/dms-gaming-status ~/.config/DankMaterialShell/plugins/gamingStatus
-```
-
-Then open DMS Settings -> Plugins and enable "Gaming Status".
-
-## Configuration
-
-In DMS settings -> Plugins -> Gaming Status:
-
-- **Poll interval** (default 5 s) - how often to scan
-- **Show game name** (default on) - display the active game name in the bar
-- **Show RAM badge** (default on) - show a compact RAM% badge when a game runs or memory pressure rises
-
-## How it works
-
-Three QML `Process` jobs poll on a timer:
-
-1. `ps -e -o pid=,args=` - find game processes by matching cmdline against `KNOWN_GAMES` in `GameDetector.js`.
-2. `gamemoded -s` - check if gamemode is currently active.
-3. `free -m` and `cat /sys/.../scaling_governor` - memory and governor state.
-
-Results feed into a few QML properties; the bar pill and popout rebind reactively. No persistent process is started.
+Click the pill to open the popout; the on/off switch lives there.
 
 ## Auto-discovery (zero-touch)
 
-The plugin discovers installed games from every common launcher on Linux, so you don't have to type process names by hand. Sources scanned every hour:
+The plugin scans every common launcher on Linux every hour, so launching any installed game shows the proper title in the bar without any manual setup:
 
-- **Steam** (native, .deb / Arch package install) - `~/.local/share/Steam` and `~/.steam/steam`
-- **Steam (Flatpak)** - `~/.var/app/com.valvesoftware.Steam/data/Steam`
-- **Lutris** - `~/.config/lutris/games/*.yml` (and the Flatpak path)
-- **Heroic** - `~/.config/heroic/store_cache/*.json` (Epic, GOG, Amazon libraries; needs `python3`)
+| Source | Path |
+|---|---|
+| Steam (native install) | `~/.local/share/Steam`, `~/.steam/steam` |
+| Steam (Flatpak) | `~/.var/app/com.valvesoftware.Steam/data/Steam` |
+| Lutris (native + Flatpak) | `~/.config/lutris/games/*.yml` |
+| Heroic — Epic / GOG / Amazon | `~/.config/heroic/store_cache/*_library.json` |
 
-For each source the plugin pulls the user-friendly game title and the install path or executable name, so when you launch any installed game the bar pill shows the proper title automatically. If none of these match, the plugin falls back to the running .exe basename (`Wine game`).
+Plus a built-in fallback list (The Sims 4, Baldur's Gate 3, Overwatch, Factorio, Stardew Valley, RimWorld, Civilization VI/VII, Minecraft, StarCraft, CS2, Dota 2). If a Wine `.exe` runs that no source recognizes, the bar shows it as the executable basename, and the popout offers a one-click **Add to my games** button.
 
-## Adding more games manually (rarely needed)
+## Installation
 
-If a game lives outside Steam/Lutris/Heroic, open DMS Settings -> Plugins -> Gaming Status -> click the caret next to "Gaming Status". The "Custom games" section has a form: **Display name** + **Process name**. Add a row and it's used immediately.
+### Via the DMS plugin browser
 
-The easiest way to find the process name: launch the game once, click this plugin's bar pill, and the popout shows `PID #### - <process_name>` for whatever is running. There's also an **"Add to my games"** button in the popout when an unidentified Wine .exe is detected - one click saves it.
+DMS Settings → **Plugins** → **Browse**, find **Gaming Status**, install. (Once accepted into the [DMS plugin registry](https://github.com/AvengeMedia/danklinux-plugins).)
 
-Custom games are saved per-user in `~/.config/DankMaterialShell/plugin_settings.json` under the `gamingStatus.customGames` key. Built-in games and auto-discovered ones are always active in addition.
+### Manually
 
-## License
+```bash
+git clone https://github.com/rollecode/dms-gaming-status.git \
+    ~/.config/DankMaterialShell/plugins/gamingStatus
+dms restart
+```
 
-MIT - see [LICENSE](LICENSE).
+### Set up the Gaming Mode toggle helper
+
+The toggle in the popout calls a small shell helper that closes non-essential apps and drops pagecache. Bundled with the plugin as `gaming-mode.sh`:
+
+```bash
+mkdir -p ~/Games
+cp ~/.config/DankMaterialShell/plugins/gamingStatus/gaming-mode.sh ~/Games/
+chmod +x ~/Games/gaming-mode.sh
+```
+
+The script needs `sudo` (passwordless or with prompt) for the `drop_caches` step. Edit the script to add or remove apps from the kill list — Discord stays open by default for voice chat.
+
+### Optional companions
+
+For the full reliable-gaming experience the plugin assumes you already have these (the toggle and detection still work without them):
+
+- **gamescope, mangohud, gamemode** — `pacman -S gamescope mangohud lib32-mangohud gamemode goverlay` (Arch). Set `MANGOHUD=1` in `~/.config/environment.d/gaming.conf` so every Vulkan / OpenGL game shows the overlay automatically.
+- **firejail** — for an "offline / sandboxed" launcher variant. Wrap a game's launch with `firejail --quiet --noprofile --net=none -- wine ...`.
+- **earlyoom** — protect the running game from OOM kills. Add the game's binary name to `--avoid` and put browsers / chat in `--prefer`.
+- **CPU governor pinned to performance** — a system-wide systemd unit; set once and forget.
+
+## Settings
+
+Settings → **Plugins** → click the caret next to **Gaming Status**:
+
+- **Show label** — toggle the "Gaming on / off" or active-game text in the bar pill
+- **Show RAM badge** — toggle the compact `RAM xx%` badge that appears when a game runs or memory pressure rises
+- **Custom games** — add games that aren't covered by built-ins or auto-discovery. Two fields: **Display name** and **Process name**. Easiest way to find a process name: launch the game once, click the bar pill, the popout shows `PID #### – <process_name>`.
+
+Custom-game entries are stored in `~/.config/DankMaterialShell/plugin_settings.json` under `gamingStatus.customGames`.
+
+## How it works
+
+A single QML widget polls four cheap commands every 3 seconds:
+
+| Job | Command |
+|---|---|
+| Active game | `ps -e -o pid=,args=` filtered by built-in + custom + Steam / Lutris / Heroic library entries |
+| Optimization daemon state | `gamemoded -s` |
+| Memory | `free -m` |
+| Governor | `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` |
+
+Library scan runs at startup and every hour after that. Detection uses a regex with path / word boundaries, so neighbouring args like `earlyoom --avoid '(^|/)(...|TS4_x64.exe|...)'` don't false-match.
+
+## Adding new games to the built-in list
+
+Open `GameDetector.js`, append to `KNOWN_GAMES`:
+
+```javascript
+{ match: "yourgame.exe", name: "Your Game", icon: "videogame_asset" }
+```
+
+PRs welcome.

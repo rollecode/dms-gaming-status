@@ -1,0 +1,12 @@
+{
+    "id": "gamingStatus",
+    "name": "Gaming Status",
+    "capabilities": ["dankbar-widget"],
+    "category": "monitoring",
+    "repo": "https://github.com/rollecode/dms-gaming-status",
+    "author": "Rolle Laukkarinen",
+    "description": "Gaming-mode toggle, auto-detection of running games (Steam / Lutris / Heroic), RAM/swap pressure and CPU governor in your DankBar",
+    "dependencies": [],
+    "compositors": ["any"],
+    "distro": ["any"]
+}

@@ -15,7 +15,7 @@
 function parseLibraryFolders(vdfText) {
     if (!vdfText) return []
     var paths = []
-    // Lines like:    "path"        "/home/rolle/.local/share/Steam"
+    // Lines like:    "path"        "/path/to/Steam"
     var re = /"path"\s*"([^"]+)"/g
     var m
     while ((m = re.exec(vdfText)) !== null) {
