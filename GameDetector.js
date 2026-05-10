@@ -8,9 +8,12 @@
 
 .pragma library
 
-// Known game executables (case-insensitive substring match against /proc cmdline)
+// Known game executables (case-insensitive substring match against the
+// process's binary path, NOT its full argv - that prevents false positives
+// where another process mentions a game name in its arguments, e.g. earlyoom
+// listing protected names in its --avoid regex).
 var KNOWN_GAMES = [
-    { match: "ts4_x64.exe",        name: "The Sims 4",      icon: "house" },
+    { match: "ts4_x64.exe",        name: "The Sims 4",      icon: "cottage" },
     { match: "bg3.exe",             name: "Baldur's Gate 3", icon: "auto_stories" },
     { match: "bg3_dx11.exe",        name: "Baldur's Gate 3", icon: "auto_stories" },
     { match: "overwatch.exe",       name: "Overwatch",       icon: "shield" },
@@ -66,22 +69,27 @@ function detectGameFromCmdlines(cmdlinesText, customGames) {
         var line = lines[i]
         if (!line || !line.trim()) continue
 
-        var lower = line.toLowerCase()
+        // Extract just the binary path (first token after the PID), so we
+        // don't false-match when an unrelated process mentions a game name
+        // in its arguments (e.g. earlyoom listing protected names in --avoid).
+        var binaryPath = extractBinaryPath(line)
+        if (!binaryPath) continue
+        var lowerBin = binaryPath.toLowerCase()
 
         for (var j = 0; j < allGames.length; j++) {
             var g = allGames[j]
-            if (lower.indexOf(g.match) !== -1) {
+            if (lowerBin.indexOf(g.match) !== -1) {
                 var pid = parsePid(line)
                 return { name: g.name, icon: g.icon, pid: pid, exe: g.match }
             }
         }
 
-        // Track first unknown wine .exe as fallback
+        // Track first unknown wine .exe as fallback - matched against binary path.
         if (!fallback) {
             for (var k = 0; k < WINE_HINTS.length; k++) {
-                if (lower.indexOf(WINE_HINTS[k].toLowerCase()) !== -1) {
+                if (lowerBin.indexOf(WINE_HINTS[k].toLowerCase()) !== -1) {
                     var pidF = parsePid(line)
-                    var exe = extractExeName(line)
+                    var exe = extractExeName(binaryPath) || extractExeName(line)
                     fallback = { name: exe || "Wine game", icon: "videogame_asset", pid: pidF, exe: exe }
                     break
                 }
@@ -90,6 +98,13 @@ function detectGameFromCmdlines(cmdlinesText, customGames) {
     }
 
     return fallback
+}
+
+function extractBinaryPath(line) {
+    // Input: "  12345 /path/to/binary arg1 arg2"
+    // Output: "/path/to/binary"
+    var m = line.match(/^\s*\d+\s+(\S+)/)
+    return m ? m[1] : ""
 }
 
 function parsePid(line) {

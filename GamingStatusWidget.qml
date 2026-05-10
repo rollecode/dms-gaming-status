@@ -12,19 +12,18 @@ PluginComponent {
 
     // Settings
     property int pollInterval: pluginData.pollInterval || 5
-    property bool showGameName: pluginData.showGameName !== undefined ? pluginData.showGameName : true
+    property bool showLabel: pluginData.showLabel !== undefined ? pluginData.showLabel : true
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
     property var customGames: pluginData.customGames || []
 
-    // Live state
+    // Toggle state - persisted across restarts
+    property bool gamingModeOn: pluginData.gamingModeOn === true
+
+    // Live monitoring state
     property var activeGame: null
-    property bool gamemodeActive: false
+    property bool optimizationDaemonActive: false
     property var memInfo: ({ totalMb: 0, usedMb: 0, availMb: 0, swapTotalMb: 0, swapUsedMb: 0 })
     property string cpuGovernor: "unknown"
-
-    property color activeColor: "#7C4DFF"
-    property color warnColor: "#FF9800"
-    property color critColor: "#F44336"
 
     Component.onCompleted: {
         pollTimer.start()
@@ -41,116 +40,89 @@ PluginComponent {
 
     function runAllPolls() {
         gameScan.running = true
-        gamemodeCheck.running = true
+        daemonCheck.running = true
         memScan.running = true
         govScan.running = true
     }
 
-    // Game-process scan
+    function toggleGamingMode() {
+        var next = !root.gamingModeOn
+        root.gamingModeOn = next
+        if (root.pluginService && root.pluginService.savePluginData) {
+            root.pluginService.savePluginData(root.pluginId, "gamingModeOn", next)
+        }
+        toggleProcess.command = ["sh", "-c", "$HOME/Games/gaming-mode.sh " + (next ? "on" : "off")]
+        toggleProcess.running = true
+    }
+
+    Process {
+        id: toggleProcess
+        command: ["true"]
+        running: false
+    }
+
     Process {
         id: gameScan
         command: ["sh", "-c", "ps -e -o pid=,args= 2>/dev/null"]
         running: false
-
         property string buffer: ""
-
-        stdout: SplitParser {
-            onRead: data => {
-                gameScan.buffer += data + "\n"
-            }
-        }
-
+        stdout: SplitParser { onRead: data => { gameScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
             root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer, root.customGames)
             gameScan.buffer = ""
         }
     }
 
-    // gamemode active state
     Process {
-        id: gamemodeCheck
+        id: daemonCheck
         command: ["sh", "-c", "gamemoded -s 2>/dev/null || echo 'gamemoded not running'"]
         running: false
-
         property string buffer: ""
-
-        stdout: SplitParser {
-            onRead: data => {
-                gamemodeCheck.buffer += data + "\n"
-            }
-        }
-
+        stdout: SplitParser { onRead: data => { daemonCheck.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
-            root.gamemodeActive = Detector.isGamemodeActive(gamemodeCheck.buffer)
-            gamemodeCheck.buffer = ""
+            root.optimizationDaemonActive = Detector.isGamemodeActive(daemonCheck.buffer)
+            daemonCheck.buffer = ""
         }
     }
 
-    // Memory snapshot
     Process {
         id: memScan
         command: ["free", "-m"]
         running: false
-
         property string buffer: ""
-
-        stdout: SplitParser {
-            onRead: data => {
-                memScan.buffer += data + "\n"
-            }
-        }
-
+        stdout: SplitParser { onRead: data => { memScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
             root.memInfo = Detector.parseFree(memScan.buffer)
             memScan.buffer = ""
         }
     }
 
-    // CPU governor
     Process {
         id: govScan
         command: ["sh", "-c", "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null"]
         running: false
-
-        stdout: SplitParser {
-            onRead: data => {
-                root.cpuGovernor = data.trim() || "unknown"
-            }
-        }
+        stdout: SplitParser { onRead: data => { root.cpuGovernor = data.trim() || "unknown" } }
     }
 
     function pressureLevel() {
         return Detector.memoryPressureLevel(root.memInfo)
     }
 
-    function isGameActive() {
-        return root.activeGame !== null
-    }
-
-    function statusIcon() {
-        if (isGameActive()) {
-            return root.activeGame.icon || "sports_esports"
-        }
-        if (pressureLevel() >= 1) return "memory"
+    function pillIcon() {
         return "sports_esports"
     }
 
-    function statusText() {
-        if (isGameActive() && root.showGameName) {
-            return root.activeGame.name
-        }
-        if (isGameActive()) {
-            return "Playing"
-        }
-        return "Idle"
+    function pillLabel() {
+        if (root.activeGame) return root.activeGame.name
+        return root.gamingModeOn ? "Gaming on" : "Gaming off"
     }
 
-    function statusColor() {
-        if (isGameActive()) return root.activeColor
+    function pillColor() {
+        if (root.gamingModeOn || root.activeGame) return Theme.primary
         var p = pressureLevel()
-        if (p === 2) return root.critColor
-        if (p === 1) return root.warnColor
-        return Theme.widgetTextColor
+        if (p === 2) return Theme.error
+        if (p === 1) return Theme.warning
+        return Theme.surfaceVariantText
     }
 
     horizontalBarPill: Component {
@@ -158,27 +130,28 @@ PluginComponent {
             spacing: Theme.spacingS
 
             DankIcon {
-                name: root.statusIcon()
+                name: root.pillIcon()
                 size: Theme.barIconSize(root.barThickness)
-                color: root.statusColor()
+                color: root.pillColor()
                 anchors.verticalCenter: parent.verticalCenter
             }
 
             StyledText {
-                text: root.statusText()
+                visible: root.showLabel
+                text: root.pillLabel()
                 font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig ? root.barConfig.fontScale : undefined)
-                color: root.statusColor()
+                color: root.pillColor()
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.showGameName || root.pressureLevel() >= 1
             }
 
-            // Compact memory badge: shows "RAMxx%" only when pressure or game active
+            // Memory badge appears only when the system is actually under pressure
+            // or a game is detected - keeps the bar tidy in idle state.
             StyledText {
+                visible: root.showMemBadge && (root.activeGame !== null || root.pressureLevel() >= 1)
                 text: "RAM " + Detector.formatPercent(root.memInfo.usedMb, root.memInfo.totalMb)
                 font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig ? root.barConfig.fontScale : undefined)
-                color: root.pressureLevel() >= 1 ? root.statusColor() : Theme.surfaceVariantText
+                color: root.pressureLevel() >= 1 ? root.pillColor() : Theme.surfaceVariantText
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.showMemBadge && (root.isGameActive() || root.pressureLevel() >= 1)
             }
         }
     }
@@ -188,9 +161,9 @@ PluginComponent {
             spacing: 2
 
             DankIcon {
-                name: root.statusIcon()
+                name: root.pillIcon()
                 size: Theme.barIconSize(root.barThickness)
-                color: root.statusColor()
+                color: root.pillColor()
                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
@@ -200,22 +173,62 @@ PluginComponent {
         PopoutComponent {
             id: popout
 
-            headerText: "Gaming Status"
-            detailsText: {
-                if (root.isGameActive()) {
-                    var parts = [root.activeGame.name]
-                    if (root.gamemodeActive) parts.push("gamemode active")
-                    return parts.join(" • ")
-                }
-                return root.gamemodeActive ? "Gamemode active" : "No game running"
-            }
+            headerText: "Gaming mode"
+            detailsText: root.gamingModeOn ? "ON - background apps minimised" : "OFF - normal desktop"
             showCloseButton: true
 
             Column {
                 width: parent.width
                 spacing: Theme.spacingM
 
-                // Game card
+                // Toggle card
+                StyledRect {
+                    width: parent.width
+                    height: toggleRow.implicitHeight + Theme.spacingM * 2
+                    radius: Theme.cornerRadius
+                    color: Theme.surfaceContainerHigh
+
+                    Row {
+                        id: toggleRow
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingM
+                        spacing: Theme.spacingM
+
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 2
+                            width: toggleRow.width - toggleSwitch.width - Theme.spacingM
+
+                            StyledText {
+                                text: "Gaming mode"
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.Medium
+                                color: Theme.surfaceText
+                            }
+
+                            StyledText {
+                                text: "Closes Spotify, Discord, Slack, Telegram and frees RAM caches"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                wrapMode: Text.WordWrap
+                                width: parent.width
+                            }
+                        }
+
+                        DankToggle {
+                            id: toggleSwitch
+                            checked: root.gamingModeOn
+                            anchors.verticalCenter: parent.verticalCenter
+                            onToggled: isChecked => {
+                                if (isChecked !== root.gamingModeOn) {
+                                    root.toggleGamingMode()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Active game card
                 StyledRect {
                     width: parent.width
                     height: gameRow.implicitHeight + Theme.spacingM * 2
@@ -232,7 +245,7 @@ PluginComponent {
                             width: 12
                             height: 12
                             radius: 6
-                            color: root.statusColor()
+                            color: root.activeGame ? Theme.primary : Theme.surfaceVariantText
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -241,19 +254,14 @@ PluginComponent {
                             spacing: 2
 
                             StyledText {
-                                text: root.isGameActive() ? root.activeGame.name : "No game running"
+                                text: root.activeGame ? root.activeGame.name : "No game running"
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.Medium
-                                color: root.statusColor()
+                                color: root.activeGame ? Theme.primary : Theme.surfaceText
                             }
 
                             StyledText {
-                                text: {
-                                    if (root.isGameActive()) {
-                                        return "PID " + root.activeGame.pid + " • " + root.activeGame.exe
-                                    }
-                                    return "Waiting for a game to launch"
-                                }
+                                text: root.activeGame ? "PID " + root.activeGame.pid + " - " + root.activeGame.exe : "Detector polls every " + root.pollInterval + "s"
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                             }
@@ -292,7 +300,7 @@ PluginComponent {
                                     text: Detector.formatMb(root.memInfo.usedMb) + " / " + Detector.formatMb(root.memInfo.totalMb)
                                     font.pixelSize: Theme.fontSizeMedium
                                     font.weight: Font.Medium
-                                    color: root.pressureLevel() >= 1 ? root.statusColor() : Theme.surfaceText
+                                    color: root.pressureLevel() === 2 ? Theme.error : root.pressureLevel() === 1 ? Theme.warning : Theme.surfaceText
                                 }
                                 StyledText {
                                     text: "RAM (" + Detector.formatPercent(root.memInfo.usedMb, root.memInfo.totalMb) + " used)"
@@ -308,7 +316,7 @@ PluginComponent {
                                     text: Detector.formatMb(root.memInfo.swapUsedMb) + " / " + Detector.formatMb(root.memInfo.swapTotalMb)
                                     font.pixelSize: Theme.fontSizeMedium
                                     font.weight: Font.Medium
-                                    color: root.memInfo.swapTotalMb > 0 && (root.memInfo.swapUsedMb / root.memInfo.swapTotalMb) > 0.5 ? root.warnColor : Theme.surfaceText
+                                    color: root.memInfo.swapTotalMb > 0 && (root.memInfo.swapUsedMb / root.memInfo.swapTotalMb) > 0.5 ? Theme.warning : Theme.surfaceText
                                 }
                                 StyledText {
                                     text: "Swap (" + Detector.formatPercent(root.memInfo.swapUsedMb, root.memInfo.swapTotalMb) + " used)"
@@ -320,7 +328,7 @@ PluginComponent {
                     }
                 }
 
-                // System card: gamemode + governor
+                // System info row
                 StyledRect {
                     width: parent.width
                     height: sysRow.implicitHeight + Theme.spacingM * 2
@@ -336,15 +344,15 @@ PluginComponent {
                         Row {
                             spacing: Theme.spacingXS
                             DankIcon {
-                                name: root.gamemodeActive ? "speed" : "speed"
+                                name: "speed"
                                 size: Theme.iconSize - 6
-                                color: root.gamemodeActive ? root.activeColor : Theme.surfaceVariantText
+                                color: root.optimizationDaemonActive ? Theme.primary : Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             StyledText {
-                                text: root.gamemodeActive ? "Gamemode active" : "Gamemode idle"
+                                text: root.optimizationDaemonActive ? "Optimization daemon: active" : "Optimization daemon: ready"
                                 font.pixelSize: Theme.fontSizeSmall
-                                color: root.gamemodeActive ? root.activeColor : Theme.surfaceVariantText
+                                color: root.optimizationDaemonActive ? Theme.primary : Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -366,6 +374,7 @@ PluginComponent {
                         }
                     }
                 }
+
             }
         }
     }

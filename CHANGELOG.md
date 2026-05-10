@@ -1,3 +1,12 @@
+### 1.1.0: 2026-05-10
+
+* Convert plugin to Gaming mode on/off toggle: bar pill state plus a switch in the popout
+* Single joystick icon (sports_esports) instead of per-game icons
+* Use Theme.primary / Theme.warning / Theme.error - no hardcoded colors
+* Match games only against the binary path, not full argv (fixes earlyoom and similar false matches)
+* Rename "Gamemode active/idle" to clearer "Optimization daemon: active/ready"
+* Persist toggle state across DMS restarts via plugin data
+
 ### 1.0.0: 2026-05-10
 
 * Initial release
