@@ -1,3 +1,14 @@
+### 1.2.0: 2026-05-10
+
+* Auto-discover installed games from Steam (native + Flatpak), Lutris, Heroic (Epic/GOG/Amazon)
+* Steam library: parse libraryfolders.vdf + appmanifest_*.acf for proper game names
+* Lutris: parse ~/.config/lutris/games/*.yml for native + Wine games
+* Heroic: parse store_cache/*.json (uses python3 if available)
+* Filter out Proton runtimes and Steamworks redistributables
+* Dedupe entries from symlinked Steam paths (~/.steam/steam vs ~/.local/share/Steam)
+* Detection rescans library every hour
+* Match boundary regex now allows trailing slash, so Steam install paths are recognized
+
 ### 1.1.0: 2026-05-10
 
 * Convert plugin to Gaming mode on/off toggle: bar pill state plus a switch in the popout

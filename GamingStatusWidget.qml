@@ -50,25 +50,110 @@ PluginComponent {
         onTriggered: steamScan.running = true
     }
 
-    // Discover all installed Steam games across every library folder.
-    // sh oneliner: parse libraryfolders.vdf for paths, then for each path's
-    // appmanifest_*.acf print "<name>\t<installdir>" lines.
+    // Discover installed games from every common launcher layout:
+    //   - Steam (native, .deb/distro install)        ~/.local/share/Steam
+    //   - Steam (Flatpak)                             ~/.var/app/com.valvesoftware.Steam/data/Steam
+    //   - Steam (legacy/dotfiles)                     ~/.steam/steam
+    //   - Lutris (Wine + native runners)              ~/.config/lutris/games/*.yml
+    //   - Heroic (Epic Games / GOG)                   ~/.config/heroic/store_cache/*.json
+    // Output format: "<name>\t<matcher>" per line. Matcher is whatever
+    // substring will appear in a running game's process command line
+    // (Steam installdir, Lutris exe basename, Heroic install path).
     Process {
         id: steamScan
-        command: ["sh", "-c", "vdf=\"$HOME/.local/share/Steam/steamapps/libraryfolders.vdf\"; [ -f \"$vdf\" ] || exit 0; awk -F'\"' '/\"path\"/{print $4}' \"$vdf\" | while read p; do for f in \"$p\"/steamapps/appmanifest_*.acf; do [ -f \"$f\" ] || continue; awk -F'\"' '/^\\t\"name\"/{n=$4} /^\\t\"installdir\"/{i=$4} END{if(n && i) printf \"%s\\t%s\\n\", n, i}' \"$f\"; done; done"]
+        command: ["sh", "-c", String.raw`
+set -eu
+
+# --- Steam ----------------------------------------------------------------
+for steam_root in "$HOME/.local/share/Steam" "$HOME/.steam/steam" "$HOME/.var/app/com.valvesoftware.Steam/data/Steam" "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam"; do
+    vdf="$steam_root/steamapps/libraryfolders.vdf"
+    [ -f "$vdf" ] || continue
+    awk -F'"' '/"path"/{print $4}' "$vdf" | while read -r p; do
+        for f in "$p"/steamapps/appmanifest_*.acf; do
+            [ -f "$f" ] || continue
+            awk -F'"' '/^\t"name"/{n=$4} /^\t"installdir"/{i=$4} END{if(n && i) printf "steam\t%s\t%s\n", n, i}' "$f"
+        done
+    done
+done
+
+# --- Lutris ---------------------------------------------------------------
+for d in "$HOME/.config/lutris/games" "$HOME/.var/app/net.lutris.Lutris/config/lutris/games"; do
+    [ -d "$d" ] || continue
+    for f in "$d"/*.yml; do
+        [ -f "$f" ] || continue
+        # Extract first 'name:' and 'exe:' fields (yaml shallow parse).
+        awk '
+          /^name:/  { sub(/^name:[ \t]*/,"");  sub(/^"|"$/,""); name=$0 }
+          /^[ \t]+exe:/ { sub(/^[ \t]+exe:[ \t]*/,""); sub(/^"|"$/,""); exe=$0 }
+          END { if (name && exe) {
+                  # Strip directory components from exe path -> basename.
+                  n = split(exe, parts, "/"); base = parts[n]
+                  if (base) printf "lutris\t%s\t%s\n", name, base
+              }}
+        ' "$f"
+    done
+done
+
+# --- Heroic (Epic / GOG / Amazon) -----------------------------------------
+for d in "$HOME/.config/heroic/store_cache" "$HOME/.var/app/com.heroicgameslauncher.hgl/config/heroic/store_cache"; do
+    [ -d "$d" ] || continue
+    for f in "$d"/legendary_library.json "$d"/gog_library.json "$d"/nile_library.json; do
+        [ -f "$f" ] || continue
+        # Heroic library JSON: array of objects with title + install.executable
+        # Use grep+awk to extract title/exe pairs (avoid jq dependency).
+        python3 - "$f" 2>/dev/null <<'PY' || true
+import json, sys, os
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+games = data.get("library") if isinstance(data, dict) else data
+if not isinstance(games, list):
+    sys.exit(0)
+for g in games:
+    title = g.get("title") or g.get("app_title") or g.get("name")
+    inst = g.get("install") or {}
+    exe = inst.get("executable") if isinstance(inst, dict) else None
+    if not (title and exe):
+        continue
+    base = os.path.basename(exe.replace("\\\\", "/").replace("\\", "/"))
+    if base:
+        print("heroic\t" + title + "\t" + base)
+PY
+    done
+done
+`]
         running: false
         property string buffer: ""
         stdout: SplitParser { onRead: data => { steamScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
-            var entries = []
+            var steamEntries = []
+            var lutrisEntries = []
+            var heroicEntries = []
             var lines = steamScan.buffer.split("\n")
             for (var i = 0; i < lines.length; i++) {
                 var parts = lines[i].split("\t")
-                if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
-                    entries.push({ name: parts[0].trim(), installdir: parts[1].trim() })
-                }
+                if (parts.length < 3) continue
+                var src = parts[0].trim()
+                var name = parts[1].trim()
+                var matcher = parts[2].trim()
+                if (!name || !matcher) continue
+                if (src === "steam")  steamEntries.push({ name: name, installdir: matcher })
+                if (src === "lutris") lutrisEntries.push({ name: name, match: matcher.toLowerCase(), source: "lutris", icon: "videogame_asset" })
+                if (src === "heroic") heroicEntries.push({ name: name, match: matcher.toLowerCase(), source: "heroic", icon: "videogame_asset" })
             }
-            root.steamGames = Steam.toGameEntries(entries)
+            var combined = Steam.toGameEntries(steamEntries).concat(lutrisEntries).concat(heroicEntries)
+            // Dedupe by match string - same Steam library can show up via multiple
+            // paths (e.g. ~/.steam/steam is usually a symlink to ~/.local/share/Steam).
+            var seen = {}
+            var unique = []
+            for (var u = 0; u < combined.length; u++) {
+                var key = combined[u].match
+                if (!key || seen[key]) continue
+                seen[key] = true
+                unique.push(combined[u])
+            }
+            root.steamGames = unique
             steamScan.buffer = ""
         }
     }

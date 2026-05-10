@@ -80,15 +80,24 @@ Three QML `Process` jobs poll on a timer:
 
 Results feed into a few QML properties; the bar pill and popout rebind reactively. No persistent process is started.
 
-## Adding more games
+## Auto-discovery (zero-touch)
 
-Open DMS Settings -> Plugins -> Gaming Status. The "Custom games" section has a small form with three fields: **Name**, **Match string**, **Icon (optional)**. Add a row, click **Add game**, the entry is saved to plugin data and used immediately.
+The plugin discovers installed games from every common launcher on Linux, so you don't have to type process names by hand. Sources scanned every hour:
 
-- **Name** is what you'll see in the bar pill.
-- **Match string** is a lowercase substring matched against the running process command line (e.g. `cyberpunk2077.exe`).
-- **Icon** is any [Material Symbols](https://fonts.google.com/icons) name. Defaults to `videogame_asset`.
+- **Steam** (native, .deb / Arch package install) - `~/.local/share/Steam` and `~/.steam/steam`
+- **Steam (Flatpak)** - `~/.var/app/com.valvesoftware.Steam/data/Steam`
+- **Lutris** - `~/.config/lutris/games/*.yml` (and the Flatpak path)
+- **Heroic** - `~/.config/heroic/store_cache/*.json` (Epic, GOG, Amazon libraries; needs `python3`)
 
-Custom games are saved per-user in `~/.config/DankMaterialShell/plugin_settings.json` under the `gamingStatus.customGames` key. Built-in games are always active in addition to your custom list.
+For each source the plugin pulls the user-friendly game title and the install path or executable name, so when you launch any installed game the bar pill shows the proper title automatically. If none of these match, the plugin falls back to the running .exe basename (`Wine game`).
+
+## Adding more games manually (rarely needed)
+
+If a game lives outside Steam/Lutris/Heroic, open DMS Settings -> Plugins -> Gaming Status -> click the caret next to "Gaming Status". The "Custom games" section has a form: **Display name** + **Process name**. Add a row and it's used immediately.
+
+The easiest way to find the process name: launch the game once, click this plugin's bar pill, and the popout shows `PID #### - <process_name>` for whatever is running. There's also an **"Add to my games"** button in the popout when an unidentified Wine .exe is detected - one click saves it.
+
+Custom games are saved per-user in `~/.config/DankMaterialShell/plugin_settings.json` under the `gamingStatus.customGames` key. Built-in games and auto-discovered ones are always active in addition.
 
 ## License
 
