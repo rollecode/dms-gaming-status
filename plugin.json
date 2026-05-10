@@ -1,0 +1,12 @@
+{
+    "id": "gamingStatus",
+    "name": "Gaming Status",
+    "description": "Real-time gaming telemetry for DankMaterialShell - active game, gamemode state, RAM/swap pressure, CPU governor",
+    "version": "1.0.0",
+    "author": "Roni Laukkarinen",
+    "icon": "sports_esports",
+    "type": "widget",
+    "component": "./GamingStatusWidget.qml",
+    "settings": "./GamingStatusSettings.qml",
+    "permissions": ["settings_read", "settings_write"]
+}
