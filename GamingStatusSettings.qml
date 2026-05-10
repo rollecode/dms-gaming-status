@@ -14,19 +14,12 @@ PluginSettings {
     property var customGames: []
 
     Component.onCompleted: {
-        customGames = root.loadValue("customGames", [])
-        rebuildGamesModel()
+        reloadFromSaved()
     }
 
-    Connections {
-        target: root.pluginService
-        enabled: root.pluginService !== null
-        function onPluginDataChanged(changedPluginId) {
-            if (changedPluginId === root.pluginId) {
-                root.customGames = root.loadValue("customGames", [])
-                root.rebuildGamesModel()
-            }
-        }
+    function reloadFromSaved() {
+        customGames = root.loadValue("customGames", [])
+        rebuildGamesModel()
     }
 
     function rebuildGamesModel() {
