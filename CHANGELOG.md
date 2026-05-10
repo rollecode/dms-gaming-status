@@ -1,3 +1,11 @@
+### 1.3.0: 2026-05-10
+
+* Gaming Mode toggle works zero-config (drops pagecache); ~/Games/gaming-mode.sh is opt-in for richer behaviour
+* Show VRAM (used / total / %) in the popout's Memory card alongside RAM and Swap
+* Widen popout to 540 px so the three columns fit cleanly
+* Drop opinionated app names from popout description
+* Bundled gaming-mode.sh: KILL_APPS and VRAM_SERVICES arrays both empty by default
+
 ### 1.2.0: 2026-05-10
 
 * Auto-discover installed games from Steam (native + Flatpak), Lutris, Heroic (Epic/GOG/Amazon)
