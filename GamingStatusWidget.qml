@@ -185,7 +185,23 @@ done
         if (root.pluginService && root.pluginService.savePluginData) {
             root.pluginService.savePluginData(root.pluginId, "gamingModeOn", next)
         }
-        toggleProcess.command = ["sh", "-c", "$HOME/Games/gaming-mode.sh " + (next ? "on" : "off")]
+        // If the user has dropped a customized gaming-mode.sh into $HOME/Games/,
+        // run it - they can opt-in to killing apps, stopping local LLM services,
+        // etc. Otherwise fall back to a minimal universal action: drop pagecache
+        // on 'on' (frees RAM the kernel was using for I/O cache), no-op on 'off'.
+        toggleProcess.command = ["sh", "-c", String.raw`
+            script="$HOME/Games/gaming-mode.sh"
+            if [ -x "$script" ]; then
+                exec "$script" "$@"
+            fi
+            case "$1" in
+                on)
+                    sync
+                    echo 3 | sudo -n tee /proc/sys/vm/drop_caches >/dev/null 2>&1 || true
+                    ;;
+                off|*)  : ;;
+            esac
+        `, "_toggle", next ? "on" : "off"]
         toggleProcess.running = true
     }
 

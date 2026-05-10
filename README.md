@@ -40,17 +40,20 @@ git clone https://github.com/rollecode/dms-gaming-status.git \
 dms restart
 ```
 
-### Set up the Gaming Mode toggle helper
+### Gaming Mode toggle (zero-config, optional customisation)
 
-The toggle in the popout calls a small shell helper that closes non-essential apps and drops pagecache. Bundled with the plugin as `gaming-mode.sh`:
+The toggle in the popout works out of the box: when you flip it on, the plugin runs a minimal `sync && drop_caches` (frees RAM that the kernel was using for I/O cache). No apps are killed, no services touched.
+
+If you want richer behaviour — close Spotify / Slack / Telegram, stop a local LLM that's hogging VRAM, etc. — drop a customised script at `~/Games/gaming-mode.sh` and the plugin will use that instead. A starter template is bundled with the plugin:
 
 ```bash
 mkdir -p ~/Games
 cp ~/.config/DankMaterialShell/plugins/gamingStatus/gaming-mode.sh ~/Games/
 chmod +x ~/Games/gaming-mode.sh
+$EDITOR ~/Games/gaming-mode.sh   # edit KILL_APPS and VRAM_SERVICES
 ```
 
-The script needs `sudo` (passwordless or with prompt) for the `drop_caches` step. Edit the script to add or remove apps from the kill list — Discord stays open by default for voice chat.
+The starter ships with `KILL_APPS=()` and `VRAM_SERVICES=()` empty — opinion-free. Anything that needs `sudo` (like `drop_caches`) requires passwordless sudo or it'll silently no-op.
 
 ### Optional companions
 
