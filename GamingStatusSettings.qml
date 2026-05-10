@@ -31,6 +31,13 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "autoToggleOnGame"
+        label: "Auto-toggle when a game runs"
+        description: "Flip Gaming Mode on as soon as a game is detected; flip off 60 seconds after it closes"
+        defaultValue: true
+    }
+
+    ToggleSetting {
         settingKey: "showLabel"
         label: "Show label"
         description: "Display 'Gaming on/off' or active game name next to the icon"

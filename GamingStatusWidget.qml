@@ -22,6 +22,7 @@ PluginComponent {
     // Settings
     property bool showLabel: pluginData.showLabel !== undefined ? pluginData.showLabel : true
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
+    property bool autoToggleOnGame: pluginData.autoToggleOnGame !== undefined ? pluginData.autoToggleOnGame : true
     property var customGames: pluginData.customGames || []
 
     // Steam library auto-discovery: lazily populated and refreshed every hour.
@@ -171,6 +172,21 @@ done
         onTriggered: runAllPolls()
     }
 
+    // Debounce auto-off: only flip gaming mode off after the game has been
+    // gone for a full minute, so brief restarts (launcher, shader compile,
+    // alt-tab, crash recovery) don't toggle the mode and bounce services.
+    Timer {
+        id: autoOffTimer
+        interval: 60 * 1000
+        repeat: false
+        running: false
+        onTriggered: {
+            if (!root.activeGame && root.gamingModeOn && root.autoToggleOnGame) {
+                root.toggleGamingMode()
+            }
+        }
+    }
+
     function runAllPolls() {
         gameScan.running = true
         daemonCheck.running = true
@@ -238,12 +254,27 @@ done
         property string buffer: ""
         stdout: SplitParser { onRead: data => { gameScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
-            // Tag user-custom entries (no source) explicitly, then concat Steam
-            // entries (which already have source: "steam"). The detector keeps
-            // entry order = priority, so user-custom names win over Steam.
             var customs = root.customGames.map(c => Object.assign({}, c, { source: "custom" }))
             var combined = customs.concat(root.steamGames)
-            root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer, combined)
+            var prev = root.activeGame
+            var next = Detector.detectGameFromCmdlines(gameScan.buffer, combined)
+            root.activeGame = next
+
+            // Auto-toggle: when a game appears, flip Gaming Mode on. When the
+            // game disappears, debounce 60s before flipping off (prevents
+            // bouncing during launcher restarts, shader compile, etc.).
+            if (root.autoToggleOnGame) {
+                var hadGame = prev !== null
+                var hasGame = next !== null
+                if (hasGame && !hadGame && !root.gamingModeOn) {
+                    root.toggleGamingMode()
+                    autoOffTimer.stop()
+                } else if (!hasGame && hadGame && root.gamingModeOn) {
+                    autoOffTimer.restart()
+                } else if (hasGame) {
+                    autoOffTimer.stop()
+                }
+            }
             gameScan.buffer = ""
         }
     }
