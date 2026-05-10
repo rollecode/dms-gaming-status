@@ -1,25 +1,11 @@
 #!/usr/bin/env bash
 # Gaming Mode helper for the dms-gaming-status DMS plugin.
 #
-#   gaming-mode.sh on      - close non-essential apps, stop VRAM-heavy
-#                            user systemd services, drop pagecache.
-#                            Remembers what was stopped so 'off' restarts it.
-#   gaming-mode.sh off     - restart anything we stopped on 'on'.
-#   gaming-mode.sh status  - print memory + governor + VRAM.
+#   gaming-mode.sh on      - run the configured pre-game cleanup
+#   gaming-mode.sh off     - restart anything 'on' stopped
+#   gaming-mode.sh status  - print memory + governor + VRAM
 #
-# Apps killed when entering gaming mode (edit to taste):
-#   - Spotify, Slack, Telegram
-#
-# Services stopped when entering gaming mode:
-#   Edit VRAM_SERVICES below. Add user systemd services that hog VRAM
-#   (local LLMs, TTS, image-gen daemons) so the game gets enough VRAM.
-#   Example: VRAM_SERVICES=("ollama.service" "voice-daemon.service")
-#
-# Apps NOT killed:
-#   - Discord (voice in multiplayer)
-#   - Browsers, terminals, editors, the WM/compositor
-#
-# This script does NOT change the CPU governor or kill any system services.
+# Edit KILL_APPS and VRAM_SERVICES below to taste.
 
 set -euo pipefail
 

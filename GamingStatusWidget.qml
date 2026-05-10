@@ -32,6 +32,7 @@ PluginComponent {
     property var activeGame: null
     property bool optimizationDaemonActive: false
     property var memInfo: ({ totalMb: 0, usedMb: 0, availMb: 0, swapTotalMb: 0, swapUsedMb: 0 })
+    property var vramInfo: ({ totalMb: 0, usedMb: 0, freeMb: 0, available: false })
     property string cpuGovernor: "unknown"
 
     Component.onCompleted: {
@@ -171,6 +172,7 @@ done
         daemonCheck.running = true
         memScan.running = true
         govScan.running = true
+        vramScan.running = true
     }
 
     function toggleGamingMode() {
@@ -255,6 +257,31 @@ done
         command: ["sh", "-c", "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null"]
         running: false
         stdout: SplitParser { onRead: data => { root.cpuGovernor = data.trim() || "unknown" } }
+    }
+
+    // VRAM via nvidia-smi. AMD/Intel boxes get nothing - the popout
+    // hides the VRAM row when available=false.
+    Process {
+        id: vramScan
+        command: ["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=memory.used,memory.total,memory.free --format=csv,noheader,nounits 2>/dev/null"]
+        running: false
+        property string buffer: ""
+        stdout: SplitParser { onRead: data => { vramScan.buffer += data + "\n" } }
+        onExited: (exitCode, exitStatus) => {
+            var line = vramScan.buffer.trim().split("\n")[0] || ""
+            var parts = line.split(",")
+            if (parts.length >= 3) {
+                root.vramInfo = {
+                    usedMb:  parseInt(parts[0].trim()) || 0,
+                    totalMb: parseInt(parts[1].trim()) || 0,
+                    freeMb:  parseInt(parts[2].trim()) || 0,
+                    available: true
+                }
+            } else {
+                root.vramInfo = { totalMb: 0, usedMb: 0, freeMb: 0, available: false }
+            }
+            vramScan.buffer = ""
+        }
     }
 
     function pressureLevel() {
@@ -360,7 +387,7 @@ done
                             }
 
                             StyledText {
-                                text: "Closes Spotify, Slack, Telegram and frees RAM caches. Discord stays open for voice."
+                                text: "Free RAM and VRAM before launching a game"
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -464,8 +491,10 @@ done
                             width: parent.width
                             spacing: 0
 
+                            property int colCount: root.vramInfo.available ? 3 : 2
+
                             Column {
-                                width: parent.width / 2
+                                width: parent.width / parent.colCount
                                 spacing: 2
                                 StyledText {
                                     text: Detector.formatMb(root.memInfo.usedMb) + " / " + Detector.formatMb(root.memInfo.totalMb)
@@ -481,7 +510,7 @@ done
                             }
 
                             Column {
-                                width: parent.width / 2
+                                width: parent.width / parent.colCount
                                 spacing: 2
                                 StyledText {
                                     text: Detector.formatMb(root.memInfo.swapUsedMb) + " / " + Detector.formatMb(root.memInfo.swapTotalMb)
@@ -491,6 +520,23 @@ done
                                 }
                                 StyledText {
                                     text: "Swap (" + Detector.formatPercent(root.memInfo.swapUsedMb, root.memInfo.swapTotalMb) + " used)"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                            }
+
+                            Column {
+                                visible: root.vramInfo.available
+                                width: parent.width / parent.colCount
+                                spacing: 2
+                                StyledText {
+                                    text: Detector.formatMb(root.vramInfo.usedMb) + " / " + Detector.formatMb(root.vramInfo.totalMb)
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    font.weight: Font.Medium
+                                    color: root.vramInfo.totalMb > 0 && (root.vramInfo.usedMb / root.vramInfo.totalMb) > 0.9 ? Theme.error : (root.vramInfo.usedMb / root.vramInfo.totalMb) > 0.75 ? Theme.warning : Theme.surfaceText
+                                }
+                                StyledText {
+                                    text: "VRAM (" + Detector.formatPercent(root.vramInfo.usedMb, root.vramInfo.totalMb) + " used)"
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.surfaceVariantText
                                 }
