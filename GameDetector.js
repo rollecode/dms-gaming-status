@@ -36,30 +36,33 @@ var KNOWN_GAMES = [
 // specific game, treat the process as a generic Wine game.
 var WINE_HINTS = ["TS4_x64", "wine64-preloader", "wineloader", ".exe"]
 
-function detectGameFromCmdlines(cmdlinesText, customGames) {
+function detectGameFromCmdlines(cmdlinesText, extraGames) {
     // cmdlinesText: newline-separated `pid args` lines from `ps -e -o pid=,args=`.
-    // customGames: optional array of user-added games from plugin settings,
-    //              same shape as KNOWN_GAMES entries: { match, name, icon }.
-    // Returns: { name, icon, pid, exe } or null
+    // extraGames: optional array of additional matchers (user-custom or
+    //             Steam-discovered). Each entry: { match, name, icon, source? }.
+    //             source defaults to "custom"; Steam entries should set "steam".
+    // Returns: { name, icon, pid, exe, source } or null
     if (!cmdlinesText) return null
 
-    // Build the combined list: user games take priority over built-ins so a
-    // user can override a built-in match (e.g. rename "Overwatch" -> "OW2").
+    // Build the combined list: extraGames first (highest priority) so they
+    // override built-ins, then KNOWN_GAMES.
     var allGames = []
-    if (Array.isArray(customGames)) {
-        for (var x = 0; x < customGames.length; x++) {
-            var c = customGames[x]
+    if (Array.isArray(extraGames)) {
+        for (var x = 0; x < extraGames.length; x++) {
+            var c = extraGames[x]
             if (c && c.match) {
                 allGames.push({
                     match: String(c.match).toLowerCase(),
                     name: c.name || c.match,
-                    icon: c.icon || "videogame_asset"
+                    icon: c.icon || "videogame_asset",
+                    source: c.source || "custom"
                 })
             }
         }
     }
     for (var y = 0; y < KNOWN_GAMES.length; y++) {
-        allGames.push(KNOWN_GAMES[y])
+        var k = KNOWN_GAMES[y]
+        allGames.push({ match: k.match, name: k.name, icon: k.icon, source: "builtin" })
     }
 
     var lines = cmdlinesText.split("\n")
@@ -84,9 +87,7 @@ function detectGameFromCmdlines(cmdlinesText, customGames) {
             var re = matchRegex(g.match)
             if (re.test(lowerLine)) {
                 var pid = parsePid(line)
-                var customCount = Array.isArray(customGames) ? customGames.length : 0
-                var src = (j < customCount) ? "custom" : "builtin"
-                return { name: g.name, icon: g.icon, pid: pid, exe: g.match, source: src }
+                return { name: g.name, icon: g.icon, pid: pid, exe: g.match, source: g.source }
             }
         }
 
@@ -116,7 +117,13 @@ var _matchRegexCache = {}
 function matchRegex(matchStr) {
     if (_matchRegexCache[matchStr]) return _matchRegexCache[matchStr]
     var escaped = matchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    var re = new RegExp("(^|[\\s\\/])" + escaped + "(\\s|$)", "i")
+    // Match the literal preceded by start, slash or whitespace, and followed
+    // by end, slash or whitespace. This covers both:
+    //   /path/TS4_x64.exe ...        (.exe filename)
+    //   .../common/Baldurs Gate 3/...   (Steam installdir)
+    // while excluding regex-quoted args like earlyoom's --avoid 'TS4_x64.exe'
+    // where the literal is preceded by '|' rather than slash/space.
+    var re = new RegExp("(^|[\\s\\/])" + escaped + "([\\s\\/]|$)", "i")
     _matchRegexCache[matchStr] = re
     return re
 }

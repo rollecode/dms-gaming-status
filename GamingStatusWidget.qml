@@ -6,6 +6,7 @@ import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
 import "GameDetector.js" as Detector
+import "SteamLibrary.js" as Steam
 
 PluginComponent {
     id: root
@@ -19,6 +20,11 @@ PluginComponent {
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
     property var customGames: pluginData.customGames || []
 
+    // Steam library auto-discovery: lazily populated and refreshed every hour.
+    // Steam-derived entries are passed into the detector as additional matchers
+    // so any installed Steam game gets recognized by name without manual entry.
+    property var steamGames: []
+
     // Toggle state - persisted across restarts
     property bool gamingModeOn: pluginData.gamingModeOn === true
 
@@ -30,7 +36,41 @@ PluginComponent {
 
     Component.onCompleted: {
         pollTimer.start()
+        steamScanTimer.start()
         runAllPolls()
+        steamScan.running = true
+    }
+
+    // Re-scan Steam library every hour (cheap; library rarely changes).
+    Timer {
+        id: steamScanTimer
+        interval: 3600 * 1000
+        repeat: true
+        running: false
+        onTriggered: steamScan.running = true
+    }
+
+    // Discover all installed Steam games across every library folder.
+    // sh oneliner: parse libraryfolders.vdf for paths, then for each path's
+    // appmanifest_*.acf print "<name>\t<installdir>" lines.
+    Process {
+        id: steamScan
+        command: ["sh", "-c", "vdf=\"$HOME/.local/share/Steam/steamapps/libraryfolders.vdf\"; [ -f \"$vdf\" ] || exit 0; awk -F'\"' '/\"path\"/{print $4}' \"$vdf\" | while read p; do for f in \"$p\"/steamapps/appmanifest_*.acf; do [ -f \"$f\" ] || continue; awk -F'\"' '/^\\t\"name\"/{n=$4} /^\\t\"installdir\"/{i=$4} END{if(n && i) printf \"%s\\t%s\\n\", n, i}' \"$f\"; done; done"]
+        running: false
+        property string buffer: ""
+        stdout: SplitParser { onRead: data => { steamScan.buffer += data + "\n" } }
+        onExited: (exitCode, exitStatus) => {
+            var entries = []
+            var lines = steamScan.buffer.split("\n")
+            for (var i = 0; i < lines.length; i++) {
+                var parts = lines[i].split("\t")
+                if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+                    entries.push({ name: parts[0].trim(), installdir: parts[1].trim() })
+                }
+            }
+            root.steamGames = Steam.toGameEntries(entries)
+            steamScan.buffer = ""
+        }
     }
 
     Timer {
@@ -91,7 +131,12 @@ PluginComponent {
         property string buffer: ""
         stdout: SplitParser { onRead: data => { gameScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
-            root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer, root.customGames)
+            // Tag user-custom entries (no source) explicitly, then concat Steam
+            // entries (which already have source: "steam"). The detector keeps
+            // entry order = priority, so user-custom names win over Steam.
+            var customs = root.customGames.map(c => Object.assign({}, c, { source: "custom" }))
+            var combined = customs.concat(root.steamGames)
+            root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer, combined)
             gameScan.buffer = ""
         }
     }
