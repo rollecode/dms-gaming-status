@@ -30,16 +30,6 @@ PluginSettings {
         opacity: 0.3
     }
 
-    SliderSetting {
-        settingKey: "pollInterval"
-        label: "Poll interval"
-        description: "How often to scan for games and refresh memory stats"
-        defaultValue: 5
-        minimum: 2
-        maximum: 30
-        unit: "s"
-    }
-
     ToggleSetting {
         settingKey: "showLabel"
         label: "Show label"
@@ -61,15 +51,30 @@ PluginSettings {
         opacity: 0.3
     }
 
+    StyledText {
+        width: parent.width
+        text: "Custom games"
+        font.pixelSize: Theme.fontSizeMedium
+        font.weight: Font.Medium
+        color: Theme.surfaceText
+    }
+
+    StyledText {
+        width: parent.width
+        text: "Built-in games (Sims 4, BG3, Overwatch, Factorio, Minecraft, etc.) are always detected. Add your own here.\n\nHow to find a process name: launch the game once, then click this plugin's bar pill - the popout shows 'PID #### - <process_name>' for whatever is running. Copy that into the Process name field."
+        font.pixelSize: Theme.fontSizeSmall
+        color: Theme.surfaceVariantText
+        wrapMode: Text.WordWrap
+    }
+
     ListSettingWithInput {
         settingKey: "customGames"
-        label: "Custom games"
-        description: "Add your own games to detect. Built-in entries (Sims 4, BG3, Overwatch, Factorio, Minecraft, etc.) are always active in addition. Match string is a lowercase substring matched against the running process binary path. Icon is any Material Symbols name."
+        label: ""
+        description: ""
         defaultValue: []
         fields: [
-            { id: "name",  label: "Name",         placeholder: "e.g. Cyberpunk 2077",   required: true,  width: 220 },
-            { id: "match", label: "Match string", placeholder: "e.g. cyberpunk2077.exe", required: true,  width: 220 },
-            { id: "icon",  label: "Icon",         placeholder: "videogame_asset",       required: false, width: 160, default: "videogame_asset" }
+            { id: "name",  label: "Display name", placeholder: "e.g. Cyberpunk 2077",     required: true, width: 240 },
+            { id: "match", label: "Process name", placeholder: "e.g. cyberpunk2077.exe", required: true, width: 240 }
         ]
     }
 }

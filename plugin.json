@@ -3,7 +3,7 @@
     "name": "Gaming Status",
     "description": "Real-time gaming telemetry for DankMaterialShell - active game, gamemode state, RAM/swap pressure, CPU governor",
     "version": "1.1.0",
-    "author": "Roni Laukkarinen",
+    "author": "Rolle Laukkarinen",
     "icon": "sports_esports",
     "type": "widget",
     "component": "./GamingStatusWidget.qml",

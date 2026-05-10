@@ -69,29 +69,40 @@ function detectGameFromCmdlines(cmdlinesText, customGames) {
         var line = lines[i]
         if (!line || !line.trim()) continue
 
-        // Extract just the binary path (first token after the PID), so we
-        // don't false-match when an unrelated process mentions a game name
-        // in its arguments (e.g. earlyoom listing protected names in --avoid).
-        var binaryPath = extractBinaryPath(line)
-        if (!binaryPath) continue
-        var lowerBin = binaryPath.toLowerCase()
+        var afterPid = line.replace(/^\s*\d+\s+/, "")
+        var lowerLine = afterPid.toLowerCase()
 
         for (var j = 0; j < allGames.length; j++) {
             var g = allGames[j]
-            if (lowerBin.indexOf(g.match) !== -1) {
+            // Match the game's exe name preceded by start/slash/whitespace and
+            // followed by end/whitespace. This handles:
+            //   /path/TS4_x64.exe                     direct Wine launch
+            //   wine64-preloader /path/TS4_x64.exe    Steam Proton launch
+            // but rejects:
+            //   earlyoom --avoid '(^|/)(...|TS4_x64.exe|...)'   pipes/regex
+            // because the exe substring is preceded by '|', not slash/space.
+            var re = matchRegex(g.match)
+            if (re.test(lowerLine)) {
                 var pid = parsePid(line)
-                return { name: g.name, icon: g.icon, pid: pid, exe: g.match }
+                var customCount = Array.isArray(customGames) ? customGames.length : 0
+                var src = (j < customCount) ? "custom" : "builtin"
+                return { name: g.name, icon: g.icon, pid: pid, exe: g.match, source: src }
             }
         }
 
-        // Track first unknown wine .exe as fallback - matched against binary path.
+        // Track first unknown wine .exe as fallback - any unmatched .exe path.
         if (!fallback) {
-            for (var k = 0; k < WINE_HINTS.length; k++) {
-                if (lowerBin.indexOf(WINE_HINTS[k].toLowerCase()) !== -1) {
-                    var pidF = parsePid(line)
-                    var exe = extractExeName(binaryPath) || extractExeName(line)
-                    fallback = { name: exe || "Wine game", icon: "videogame_asset", pid: pidF, exe: exe }
-                    break
+            var fallbackRe = /(^|[\s\/])([\w.-]+\.exe)(\s|$)/i
+            var m = afterPid.match(fallbackRe)
+            if (m && m[2]) {
+                var exe = m[2]
+                var pidF = parsePid(line)
+                fallback = {
+                    name: exe.replace(/\.exe$/i, ""),
+                    icon: "videogame_asset",
+                    pid: pidF,
+                    exe: exe.toLowerCase(),
+                    source: "wine"
                 }
             }
         }
@@ -100,11 +111,14 @@ function detectGameFromCmdlines(cmdlinesText, customGames) {
     return fallback
 }
 
-function extractBinaryPath(line) {
-    // Input: "  12345 /path/to/binary arg1 arg2"
-    // Output: "/path/to/binary"
-    var m = line.match(/^\s*\d+\s+(\S+)/)
-    return m ? m[1] : ""
+// Cache of compiled regexes keyed by match string.
+var _matchRegexCache = {}
+function matchRegex(matchStr) {
+    if (_matchRegexCache[matchStr]) return _matchRegexCache[matchStr]
+    var escaped = matchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    var re = new RegExp("(^|[\\s\\/])" + escaped + "(\\s|$)", "i")
+    _matchRegexCache[matchStr] = re
+    return re
 }
 
 function parsePid(line) {

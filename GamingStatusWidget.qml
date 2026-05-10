@@ -10,8 +10,11 @@ import "GameDetector.js" as Detector
 PluginComponent {
     id: root
 
+    // Hardcoded - real-time process detection on Linux needs root (eBPF/netlink),
+    // and 3 seconds is plenty fast for games that run for minutes/hours.
+    readonly property int pollInterval: 3
+
     // Settings
-    property int pollInterval: pluginData.pollInterval || 5
     property bool showLabel: pluginData.showLabel !== undefined ? pluginData.showLabel : true
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
     property var customGames: pluginData.customGames || []
@@ -53,6 +56,26 @@ PluginComponent {
         }
         toggleProcess.command = ["sh", "-c", "$HOME/Games/gaming-mode.sh " + (next ? "on" : "off")]
         toggleProcess.running = true
+    }
+
+    // One-click "Add this game" from the popout when an unidentified Wine .exe
+    // is currently running. Saves into pluginData.customGames so the plugin
+    // recognizes it from now on.
+    function addCurrentAsCustom() {
+        if (!root.activeGame || !root.activeGame.exe) return
+        var exe = String(root.activeGame.exe).toLowerCase()
+        var displayName = exe.replace(/\.exe$/i, "")
+
+        var current = root.customGames.slice()
+        for (var i = 0; i < current.length; i++) {
+            if (current[i].match === exe) return
+        }
+        current.push({ name: displayName, match: exe })
+
+        root.customGames = current
+        if (root.pluginService && root.pluginService.savePluginData) {
+            root.pluginService.savePluginData(root.pluginId, "customGames", current)
+        }
     }
 
     Process {
@@ -231,40 +254,58 @@ PluginComponent {
                 // Active game card
                 StyledRect {
                     width: parent.width
-                    height: gameRow.implicitHeight + Theme.spacingM * 2
+                    height: gameCardCol.implicitHeight + Theme.spacingM * 2
                     radius: Theme.cornerRadius
                     color: Theme.surfaceContainerHigh
 
-                    Row {
-                        id: gameRow
-                        anchors.fill: parent
+                    Column {
+                        id: gameCardCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
                         anchors.margins: Theme.spacingM
-                        spacing: Theme.spacingM
+                        spacing: Theme.spacingS
 
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: root.activeGame ? Theme.primary : Theme.surfaceVariantText
-                            anchors.verticalCenter: parent.verticalCenter
+                        Row {
+                            id: gameRow
+                            width: parent.width
+                            spacing: Theme.spacingM
+
+                            Rectangle {
+                                width: 12
+                                height: 12
+                                radius: 6
+                                color: root.activeGame ? Theme.primary : Theme.surfaceVariantText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+
+                                StyledText {
+                                    text: root.activeGame ? root.activeGame.name : "No game running"
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    font.weight: Font.Medium
+                                    color: root.activeGame ? Theme.primary : Theme.surfaceText
+                                }
+
+                                StyledText {
+                                    text: root.activeGame ? "PID " + root.activeGame.pid + " - " + root.activeGame.exe : "Detector polls every " + root.pollInterval + "s"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                            }
                         }
 
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
-
-                            StyledText {
-                                text: root.activeGame ? root.activeGame.name : "No game running"
-                                font.pixelSize: Theme.fontSizeMedium
-                                font.weight: Font.Medium
-                                color: root.activeGame ? Theme.primary : Theme.surfaceText
-                            }
-
-                            StyledText {
-                                text: root.activeGame ? "PID " + root.activeGame.pid + " - " + root.activeGame.exe : "Detector polls every " + root.pollInterval + "s"
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceVariantText
-                            }
+                        // Show "Add to my games" only when an unidentified Wine
+                        // game is running. One click saves it as a custom game
+                        // so it gets recognized properly from now on.
+                        DankButton {
+                            visible: root.activeGame !== null && root.activeGame.source === "wine"
+                            text: "Add to my games"
+                            iconName: "add"
+                            onClicked: root.addCurrentAsCustom()
                         }
                     }
                 }
