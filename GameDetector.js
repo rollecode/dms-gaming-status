@@ -33,10 +33,31 @@ var KNOWN_GAMES = [
 // specific game, treat the process as a generic Wine game.
 var WINE_HINTS = ["TS4_x64", "wine64-preloader", "wineloader", ".exe"]
 
-function detectGameFromCmdlines(cmdlinesText) {
-    // cmdlinesText: newline-separated PID\tcomm\tcmdline lines from `ps -e -o pid=,comm=,args=`.
+function detectGameFromCmdlines(cmdlinesText, customGames) {
+    // cmdlinesText: newline-separated `pid args` lines from `ps -e -o pid=,args=`.
+    // customGames: optional array of user-added games from plugin settings,
+    //              same shape as KNOWN_GAMES entries: { match, name, icon }.
     // Returns: { name, icon, pid, exe } or null
     if (!cmdlinesText) return null
+
+    // Build the combined list: user games take priority over built-ins so a
+    // user can override a built-in match (e.g. rename "Overwatch" -> "OW2").
+    var allGames = []
+    if (Array.isArray(customGames)) {
+        for (var x = 0; x < customGames.length; x++) {
+            var c = customGames[x]
+            if (c && c.match) {
+                allGames.push({
+                    match: String(c.match).toLowerCase(),
+                    name: c.name || c.match,
+                    icon: c.icon || "videogame_asset"
+                })
+            }
+        }
+    }
+    for (var y = 0; y < KNOWN_GAMES.length; y++) {
+        allGames.push(KNOWN_GAMES[y])
+    }
 
     var lines = cmdlinesText.split("\n")
     var fallback = null
@@ -47,8 +68,8 @@ function detectGameFromCmdlines(cmdlinesText) {
 
         var lower = line.toLowerCase()
 
-        for (var j = 0; j < KNOWN_GAMES.length; j++) {
-            var g = KNOWN_GAMES[j]
+        for (var j = 0; j < allGames.length; j++) {
+            var g = allGames[j]
             if (lower.indexOf(g.match) !== -1) {
                 var pid = parsePid(line)
                 return { name: g.name, icon: g.icon, pid: pid, exe: g.match }

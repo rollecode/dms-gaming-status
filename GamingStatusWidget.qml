@@ -14,6 +14,7 @@ PluginComponent {
     property int pollInterval: pluginData.pollInterval || 5
     property bool showGameName: pluginData.showGameName !== undefined ? pluginData.showGameName : true
     property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
+    property var customGames: pluginData.customGames || []
 
     // Live state
     property var activeGame: null
@@ -60,7 +61,7 @@ PluginComponent {
         }
 
         onExited: (exitCode, exitStatus) => {
-            root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer)
+            root.activeGame = Detector.detectGameFromCmdlines(gameScan.buffer, root.customGames)
             gameScan.buffer = ""
         }
     }

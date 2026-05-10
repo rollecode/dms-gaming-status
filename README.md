@@ -53,14 +53,14 @@ No daemons, no extra processes. Polls a few `ps`/`free`/`gamemoded` commands eve
 
 ## Installation
 
-This is a standard DMS plugin. Clone the repo somewhere DMS scans for plugins, or symlink it:
+DMS reads plugins from `~/.config/DankMaterialShell/plugins/`. Clone or symlink the repo there as `gamingStatus` (the id from `plugin.json`):
 
 ```bash
-git clone https://github.com/rollecode/dms-gaming-status.git \
-  ~/.config/quickshell/dms/plugins/gaming-status
+git clone https://github.com/rollecode/dms-gaming-status.git ~/Projects/dms-gaming-status
+ln -s ~/Projects/dms-gaming-status ~/.config/DankMaterialShell/plugins/gamingStatus
 ```
 
-Then enable the plugin from DMS settings.
+Then open DMS Settings -> Plugins and enable "Gaming Status".
 
 ## Configuration
 
@@ -82,13 +82,13 @@ Results feed into a few QML properties; the bar pill and popout rebind reactivel
 
 ## Adding more games
 
-Edit `GameDetector.js`, append to `KNOWN_GAMES`:
+Open DMS Settings -> Plugins -> Gaming Status. The "Custom games" section has a small form with three fields: **Name**, **Match string**, **Icon (optional)**. Add a row, click **Add game**, the entry is saved to plugin data and used immediately.
 
-```javascript
-{ match: "yourgame.exe", name: "Your Game", icon: "videogame_asset" }
-```
+- **Name** is what you'll see in the bar pill.
+- **Match string** is a lowercase substring matched against the running process command line (e.g. `cyberpunk2077.exe`).
+- **Icon** is any [Material Symbols](https://fonts.google.com/icons) name. Defaults to `videogame_asset`.
 
-`match` is a lowercase substring matched against the cmdline. `icon` is any [Material Symbols](https://fonts.google.com/icons) name.
+Custom games are saved per-user in `~/.config/DankMaterialShell/plugin_settings.json` under the `gamingStatus.customGames` key. Built-in games are always active in addition to your custom list.
 
 ## License
 
