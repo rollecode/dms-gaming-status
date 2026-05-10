@@ -207,7 +207,7 @@ PluginComponent {
                             }
 
                             StyledText {
-                                text: "Closes Spotify, Discord, Slack, Telegram and frees RAM caches"
+                                text: "Closes Spotify, Slack, Telegram and frees RAM caches. Discord stays open for voice."
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
