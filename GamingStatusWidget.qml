@@ -254,28 +254,54 @@ done
         property string buffer: ""
         stdout: SplitParser { onRead: data => { gameScan.buffer += data + "\n" } }
         onExited: (exitCode, exitStatus) => {
-            var customs = root.customGames.map(c => Object.assign({}, c, { source: "custom" }))
-            var combined = customs.concat(root.steamGames)
+            // Defensive: build a fresh plain-JS array of matchers. Avoids
+            // Object.assign on QML-managed objects which has been observed to
+            // crash the Qt QML engine in some Quickshell builds.
+            var combined = []
+            var cg = root.customGames
+            if (Array.isArray(cg)) {
+                for (var i = 0; i < cg.length; i++) {
+                    var c = cg[i]
+                    if (c && typeof c.match === "string") {
+                        combined.push({
+                            match: String(c.match),
+                            name:  c.name  ? String(c.name)  : String(c.match),
+                            icon:  c.icon  ? String(c.icon)  : "videogame_asset",
+                            source: "custom"
+                        })
+                    }
+                }
+            }
+            var sg = root.steamGames
+            if (Array.isArray(sg)) {
+                for (var j = 0; j < sg.length; j++) {
+                    combined.push(sg[j])
+                }
+            }
+
             var prev = root.activeGame
             var next = Detector.detectGameFromCmdlines(gameScan.buffer, combined)
             root.activeGame = next
-
-            // Auto-toggle: when a game appears, flip Gaming Mode on. When the
-            // game disappears, debounce 60s before flipping off (prevents
-            // bouncing during launcher restarts, shader compile, etc.).
-            if (root.autoToggleOnGame) {
-                var hadGame = prev !== null
-                var hasGame = next !== null
-                if (hasGame && !hadGame && !root.gamingModeOn) {
-                    root.toggleGamingMode()
-                    autoOffTimer.stop()
-                } else if (!hasGame && hadGame && root.gamingModeOn) {
-                    autoOffTimer.restart()
-                } else if (hasGame) {
-                    autoOffTimer.stop()
-                }
-            }
             gameScan.buffer = ""
+
+            // Defer the toggle out of this callback so QML bindings reactive on
+            // activeGame have a chance to settle before we change gamingModeOn
+            // in the same tick. Reduces the chance of cascading re-evaluations
+            // triggering a Qt QML engine crash.
+            if (root.autoToggleOnGame) {
+                Qt.callLater(() => {
+                    var hadGame = prev !== null
+                    var hasGame = root.activeGame !== null
+                    if (hasGame && !hadGame && !root.gamingModeOn) {
+                        root.toggleGamingMode()
+                        autoOffTimer.stop()
+                    } else if (!hasGame && hadGame && root.gamingModeOn) {
+                        autoOffTimer.restart()
+                    } else if (hasGame) {
+                        autoOffTimer.stop()
+                    }
+                })
+            }
         }
     }
 
