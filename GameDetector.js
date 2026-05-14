@@ -20,6 +20,8 @@ var KNOWN_GAMES = [
     { match: "battle.net.exe",      name: "Battle.net",      icon: "shield" },
     { match: "deadspace2.exe",      name: "Dead Space 2",    icon: "rocket" },
     { match: "deadspace.exe",       name: "Dead Space",      icon: "rocket" },
+    { match: "rdr2.exe",            name: "Red Dead Redemption 2", icon: "videogame_asset" },
+    { match: "playrdr2.exe",        name: "Red Dead Redemption 2", icon: "videogame_asset" },
     { match: "cs2",                 name: "CS2",             icon: "sports_esports" },
     { match: "csgo",                name: "CS:GO",           icon: "sports_esports" },
     { match: "dota2",               name: "Dota 2",          icon: "sports_esports" },
