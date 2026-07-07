@@ -21,7 +21,6 @@ PluginComponent {
 
     // Settings
     property bool showLabel: pluginData.showLabel !== undefined ? pluginData.showLabel : true
-    property bool showMemBadge: pluginData.showMemBadge !== undefined ? pluginData.showMemBadge : true
     property bool autoToggleOnGame: pluginData.autoToggleOnGame !== undefined ? pluginData.autoToggleOnGame : true
     property var customGames: pluginData.customGames || []
 
@@ -398,16 +397,6 @@ done
                 text: root.pillLabel()
                 font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig ? root.barConfig.fontScale : undefined)
                 color: root.pillColor()
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            // Memory badge appears only when the system is actually under pressure
-            // or a game is detected - keeps the bar tidy in idle state.
-            StyledText {
-                visible: root.showMemBadge && (root.activeGame !== null || root.pressureLevel() >= 1)
-                text: "RAM " + Detector.formatPercent(root.memInfo.usedMb, root.memInfo.totalMb)
-                font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig ? root.barConfig.fontScale : undefined)
-                color: root.pressureLevel() >= 1 ? root.pillColor() : Theme.surfaceVariantText
                 anchors.verticalCenter: parent.verticalCenter
             }
         }

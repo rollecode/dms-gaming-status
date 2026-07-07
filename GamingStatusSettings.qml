@@ -44,13 +44,6 @@ PluginSettings {
         defaultValue: true
     }
 
-    ToggleSetting {
-        settingKey: "showMemBadge"
-        label: "Show RAM badge"
-        description: "Show RAM% next to the pill when a game is running or memory is tight"
-        defaultValue: true
-    }
-
     Rectangle {
         width: parent.width
         height: 1

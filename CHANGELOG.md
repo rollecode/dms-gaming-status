@@ -1,3 +1,7 @@
+### 1.3.2: 2026-07-07
+
+* Remove the RAM% badge from the bar pill: dedicated RAM/VRAM widgets cover that now
+
 ### 1.3.1: 2026-07-07
 
 * Remove the popout's "Gaming mode" header and "ON/OFF" status description, redundant with the toggle card below
