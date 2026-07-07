@@ -1,3 +1,7 @@
+### 1.3.1: 2026-07-07
+
+* Remove the popout's "Gaming mode" header and "ON/OFF" status description, redundant with the toggle card below
+
 ### 1.3.0: 2026-05-10
 
 * Gaming Mode toggle works zero-config (drops pagecache); ~/Games/gaming-mode.sh is opt-in for richer behaviour

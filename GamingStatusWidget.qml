@@ -430,8 +430,6 @@ done
         PopoutComponent {
             id: popout
 
-            headerText: "Gaming mode"
-            detailsText: root.gamingModeOn ? "ON - background apps minimised" : "OFF - normal desktop"
             showCloseButton: true
 
             Column {
