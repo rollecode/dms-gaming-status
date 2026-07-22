@@ -294,7 +294,11 @@ done
                     if (hasGame && !hadGame && !root.gamingModeOn) {
                         root.toggleGamingMode()
                         autoOffTimer.stop()
-                    } else if (!hasGame && hadGame && root.gamingModeOn) {
+                    } else if (!hasGame && root.gamingModeOn && !autoOffTimer.running) {
+                        // Not transition-gated: a shell restart drops the timer
+                        // and restores gamingModeOn from plugin data, so the
+                        // fresh instance must re-arm from state alone or the
+                        // mode sticks on forever.
                         autoOffTimer.restart()
                     } else if (hasGame) {
                         autoOffTimer.stop()

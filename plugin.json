@@ -1,13 +1,18 @@
 {
-    "id": "gamingStatus",
-    "name": "Gaming Status",
-    "description": "Gaming-mode toggle, auto-detection of running games, RAM/swap pressure and CPU governor in your DankBar",
-    "version": "1.3.2",
-    "author": "Rolle Laukkarinen",
-    "icon": "sports_esports",
-    "type": "widget",
-    "capabilities": ["dankbar-widget"],
-    "component": "./GamingStatusWidget.qml",
-    "settings": "./GamingStatusSettings.qml",
-    "permissions": ["settings_read", "settings_write"]
+  "id": "gamingStatus",
+  "name": "Gaming Status",
+  "description": "Gaming-mode toggle, auto-detection of running games, RAM/swap pressure and CPU governor in your DankBar",
+  "version": "1.3.3",
+  "author": "Rolle Laukkarinen",
+  "icon": "sports_esports",
+  "type": "widget",
+  "capabilities": [
+    "dankbar-widget"
+  ],
+  "component": "./GamingStatusWidget.qml",
+  "settings": "./GamingStatusSettings.qml",
+  "permissions": [
+    "settings_read",
+    "settings_write"
+  ]
 }
