@@ -32,6 +32,13 @@ PluginComponent {
     // Toggle state - persisted across restarts
     property bool gamingModeOn: pluginData.gamingModeOn === true
 
+    // True when the user flipped the mode on themselves rather than a detected
+    // game doing it. Auto-off never fires on a manual hold: without this the
+    // ungated arming below turns a deliberate toggle off 60 s later, since no
+    // game is running to keep it alive. Persisted so a shell restart does not
+    // silently downgrade a manual hold to an automatic one.
+    property bool gamingModeManual: pluginData.gamingModeManual === true
+
     // Live monitoring state
     property var activeGame: null
     property bool optimizationDaemonActive: false
@@ -180,8 +187,9 @@ done
         repeat: false
         running: false
         onTriggered: {
-            if (!root.activeGame && root.gamingModeOn && root.autoToggleOnGame) {
-                root.toggleGamingMode()
+            if (!root.activeGame && root.gamingModeOn && root.autoToggleOnGame
+                    && !root.gamingModeManual) {
+                root.toggleGamingMode(false)
             }
         }
     }
@@ -194,11 +202,19 @@ done
         vramScan.running = true
     }
 
-    function toggleGamingMode() {
+    function toggleGamingMode(manual) {
         var next = !root.gamingModeOn
+        // A manual switch-on is a hold; any switch-off clears it, so the next
+        // detected game is free to manage the mode automatically again.
+        var held = next === true && manual === true
         root.gamingModeOn = next
+        root.gamingModeManual = held
         if (root.pluginService && root.pluginService.savePluginData) {
             root.pluginService.savePluginData(root.pluginId, "gamingModeOn", next)
+            root.pluginService.savePluginData(root.pluginId, "gamingModeManual", held)
+        }
+        if (held) {
+            autoOffTimer.stop()
         }
         // If the user has dropped a customized gaming-mode.sh into $HOME/Games/,
         // run it - they can opt-in to killing apps, stopping local LLM services,
@@ -292,7 +308,10 @@ done
                     var hadGame = prev !== null
                     var hasGame = root.activeGame !== null
                     if (hasGame && !hadGame && !root.gamingModeOn) {
-                        root.toggleGamingMode()
+                        root.toggleGamingMode(false)
+                        autoOffTimer.stop()
+                    } else if (root.gamingModeManual) {
+                        // Held by hand: never arm auto-off, whatever games do.
                         autoOffTimer.stop()
                     } else if (!hasGame && root.gamingModeOn && !autoOffTimer.running) {
                         // Not transition-gated: a shell restart drops the timer
@@ -469,7 +488,7 @@ done
                             anchors.verticalCenter: parent.verticalCenter
                             onToggled: isChecked => {
                                 if (isChecked !== root.gamingModeOn) {
-                                    root.toggleGamingMode()
+                                    root.toggleGamingMode(true)
                                 }
                             }
                         }

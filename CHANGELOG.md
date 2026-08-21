@@ -1,3 +1,8 @@
+### 1.3.4: 2026-08-22
+
+* Manually enabled gaming mode no longer auto-disables
+* Detect the native Linux Baldur's Gate 3 binary
+
 ### 1.3.2: 2026-07-07
 
 * Remove the RAM% badge from the bar pill: dedicated RAM/VRAM widgets cover that now
