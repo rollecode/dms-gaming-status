@@ -16,6 +16,9 @@ var KNOWN_GAMES = [
     { match: "ts4_x64.exe",        name: "The Sims 4",      icon: "cottage" },
     { match: "bg3.exe",             name: "Baldur's Gate 3", icon: "auto_stories" },
     { match: "bg3_dx11.exe",        name: "Baldur's Gate 3", icon: "auto_stories" },
+    // Native Linux build: the binary is plain `bg3`, no .exe, so the two
+    // Proton matchers above never fire for it.
+    { match: "Baldurs Gate 3/bin/bg3", name: "Baldur's Gate 3", icon: "auto_stories" },
     { match: "overwatch.exe",       name: "Overwatch",       icon: "shield" },
     { match: "battle.net.exe",      name: "Battle.net",      icon: "shield" },
     { match: "deadspace2.exe",      name: "Dead Space 2",    icon: "rocket" },
