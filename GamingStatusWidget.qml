@@ -394,12 +394,45 @@ done
         }
     }
 
-    function pressureLevel() {
-        return Detector.memoryPressureLevel(root.memInfo)
+    function availRamPct() {
+        if (root.memInfo.totalMb === 0) {
+            return 100
+        }
+        return (root.memInfo.availMb / root.memInfo.totalMb) * 100
     }
 
+    function usedSwapPct() {
+        if (root.memInfo.swapTotalMb === 0) {
+            return 0
+        }
+        return (root.memInfo.swapUsedMb / root.memInfo.swapTotalMb) * 100
+    }
+
+    // 0 = healthy, 1 = warning, 2 = critical. A full swapfile is not pressure
+    // on its own: pages parked hours ago stay counted while RAM sits half
+    // free, so swap only escalates once RAM is tight too.
+    function pressureLevel() {
+        var avail = availRamPct()
+        var swap = usedSwapPct()
+        if (avail < 5 || (avail < 25 && swap > 75)) {
+            return 2
+        }
+        if (avail < 15 || (avail < 35 && swap > 50)) {
+            return 1
+        }
+        return 0
+    }
+
+    // The RAM figure reports RAM alone, so swap must not colour it.
     function ramPressureLevel() {
-        return Detector.ramPressureLevel(root.memInfo)
+        var avail = availRamPct()
+        if (avail < 5) {
+            return 2
+        }
+        if (avail < 15) {
+            return 1
+        }
+        return 0
     }
 
     function pillIcon() {

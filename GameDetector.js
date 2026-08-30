@@ -172,27 +172,9 @@ function parseFree(output) {
     return result
 }
 
-// A full swapfile is not pressure on its own: pages parked hours ago stay
-// counted while RAM sits half free, so swap only escalates once RAM is tight
-// too. Without the gate a week of uptime pins this to warning permanently.
-function memoryPressureLevel(memInfo) {
-    // 0 = healthy, 1 = warning, 2 = critical
-    if (memInfo.totalMb === 0) return 0
-    var availPct = (memInfo.availMb / memInfo.totalMb) * 100
-    var swapPct = memInfo.swapTotalMb > 0 ? (memInfo.swapUsedMb / memInfo.swapTotalMb) * 100 : 0
-    if (availPct < 5 || (availPct < 25 && swapPct > 75)) return 2
-    if (availPct < 15 || (availPct < 35 && swapPct > 50)) return 1
-    return 0
-}
-
-// The RAM figure reports RAM alone, so swap must not colour it.
-function ramPressureLevel(memInfo) {
-    if (memInfo.totalMb === 0) return 0
-    var availPct = (memInfo.availMb / memInfo.totalMb) * 100
-    if (availPct < 5) return 2
-    if (availPct < 15) return 1
-    return 0
-}
+// Memory pressure thresholds live in GamingStatusWidget.qml, not here: this
+// file is a .pragma library, so the engine caches it for its whole lifetime
+// and a plugin reload keeps serving the copy loaded at startup.
 
 function formatMb(mb) {
     if (mb >= 1024) return (mb / 1024).toFixed(1) + " GiB"

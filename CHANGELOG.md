@@ -1,3 +1,7 @@
+### 1.3.6: 2026-08-30
+
+* Move memory thresholds out of the cached library
+
 ### 1.3.5: 2026-08-30
 
 * Stop swap usage colouring the RAM figure
