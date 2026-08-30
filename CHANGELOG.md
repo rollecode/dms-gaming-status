@@ -1,3 +1,9 @@
+### 1.3.5: 2026-08-30
+
+* Stop swap usage colouring the RAM figure
+* Escalate swap only when RAM is tight too
+* Fix gaming toggle undoing itself on double-fire
+
 ### 1.3.4: 2026-08-22
 
 * Manually enabled gaming mode no longer auto-disables

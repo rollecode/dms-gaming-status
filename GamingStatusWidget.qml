@@ -398,6 +398,10 @@ done
         return Detector.memoryPressureLevel(root.memInfo)
     }
 
+    function ramPressureLevel() {
+        return Detector.ramPressureLevel(root.memInfo)
+    }
+
     function pillIcon() {
         return "sports_esports"
     }
@@ -596,7 +600,7 @@ done
                                     text: Detector.formatMb(root.memInfo.usedMb) + " / " + Detector.formatMb(root.memInfo.totalMb)
                                     font.pixelSize: Theme.fontSizeMedium
                                     font.weight: Font.Medium
-                                    color: root.pressureLevel() === 2 ? Theme.error : root.pressureLevel() === 1 ? Theme.warning : Theme.surfaceText
+                                    color: root.ramPressureLevel() === 2 ? Theme.error : root.ramPressureLevel() === 1 ? Theme.warning : Theme.surfaceText
                                 }
                                 StyledText {
                                     text: "RAM (" + Detector.formatPercent(root.memInfo.usedMb, root.memInfo.totalMb) + " used)"
