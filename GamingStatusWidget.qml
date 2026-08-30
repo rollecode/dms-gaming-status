@@ -202,8 +202,19 @@ done
         vramScan.running = true
     }
 
+    // Flip relative to current state. Kept for the automatic call sites.
     function toggleGamingMode(manual) {
-        var next = !root.gamingModeOn
+        setGamingMode(!root.gamingModeOn, manual)
+    }
+
+    // Idempotent: asking for the state it is already in does nothing. DankToggle
+    // can emit onToggled more than once for a single click, and a flip-based
+    // handler turned that into on-then-off, so the UI drives this instead.
+    function setGamingMode(want, manual) {
+        if (want === root.gamingModeOn) {
+            return
+        }
+        var next = want
         // A manual switch-on is a hold; any switch-off clears it, so the next
         // detected game is free to manage the mode automatically again.
         var held = next === true && manual === true
@@ -487,9 +498,7 @@ done
                             checked: root.gamingModeOn
                             anchors.verticalCenter: parent.verticalCenter
                             onToggled: isChecked => {
-                                if (isChecked !== root.gamingModeOn) {
-                                    root.toggleGamingMode(true)
-                                }
+                                root.setGamingMode(isChecked, true)
                             }
                         }
                     }
